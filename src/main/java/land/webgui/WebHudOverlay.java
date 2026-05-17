@@ -4,9 +4,13 @@ import com.cinemamod.mcef.MCEF;
 import com.cinemamod.mcef.MCEFBrowser;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
+//? if >=1.21.5 {
 import net.minecraft.client.gl.RenderPipelines;
+//? }
 import net.minecraft.client.gui.DrawContext;
+//? if >=1.20.5 {
 import net.minecraft.client.render.RenderTickCounter;
+//? }
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
@@ -206,7 +210,11 @@ public final class WebHudOverlay {
         HudRenderCallback.EVENT.register(WebHudOverlay::onHudRender);
     }
 
+    //? if >=1.20.5 {
     private static void onHudRender(DrawContext context, RenderTickCounter tickCounter) {
+    //? } else {
+    /*private static void onHudRender(DrawContext context, float tickDelta) {*/
+    //? }
         if (!hudVisible) {
             return;
         }
@@ -224,7 +232,11 @@ public final class WebHudOverlay {
         if (!browser.isTextureReady()) {
             return;
         }
+        //? if >=1.21.5 {
         Identifier tex = browser.getTextureIdentifier();
+        //? } else {
+        /*Identifier tex = browser.getTextureLocation();*/
+        //? }
         if (tex == null) {
             return;
         }
@@ -232,6 +244,7 @@ public final class WebHudOverlay {
         int sw = client.getWindow().getScaledWidth();
         int sh = client.getWindow().getScaledHeight();
 
+        //? if >=1.21.5 {
         context.drawTexture(
                 RenderPipelines.GUI_TEXTURED,
                 tex,
@@ -243,7 +256,19 @@ public final class WebHudOverlay {
                 sh,
                 sw,
                 sh);
-
+        //? } else {
+        /*context.drawTexture(
+                tex,
+                0,
+                0,
+                0,
+                0f,
+                0f,
+                sw,
+                sh,
+                sw,
+                sh);*/
+        //? }
     }
 
     public static boolean containsMouse(double mouseX, double mouseY, MinecraftClient client) {
@@ -268,7 +293,6 @@ public final class WebHudOverlay {
         if (browser == null) {
             return;
         }
-        // Use exact framebuffer dimensions — avoids 1-px mismatch from (int)(scaledW * scale)
         int pxW = client.getWindow().getWidth();
         int pxH = client.getWindow().getHeight();
         if (pxW != lastPixelW || pxH != lastPixelH) {

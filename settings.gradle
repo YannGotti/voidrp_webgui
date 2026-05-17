@@ -6,4 +6,20 @@ pluginManagement {
     }
 }
 
+plugins {
+    id 'dev.kikugie.stonecutter' version '0.9.4'
+}
+
+stonecutter {
+    kotlinController = false
+    centralScript = 'build.gradle'
+
+    create(rootProject) {
+        version '1.21.11', '1.21.11'
+        version '1.21.1',  '1.21.1'
+        version '1.20.1',  '1.20.1'
+        vcsVersion = '1.21.11'
+    }
+}
+
 rootProject.name = 'webgui'

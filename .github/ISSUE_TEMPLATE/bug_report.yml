@@ -1,0 +1,55 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: [bug]
+body:
+  - type: dropdown
+    id: minecraft_version
+    attributes:
+      label: Minecraft Version
+      options:
+        - '1.21.11'
+        - '1.21.1'
+        - '1.20.1'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mod_loader
+    attributes:
+      label: Mod Loader
+      options:
+        - Fabric
+    validations:
+      required: true
+
+  - type: input
+    id: mod_version
+    attributes:
+      label: WebGUI Version
+      placeholder: 'e.g. 1.0.3+mc1.21.11'
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      placeholder: Describe the bug clearly. What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+
+  - type: input
+    id: logs
+    attributes:
+      label: Log file (link to Gist — do NOT paste inline)
+      placeholder: 'https://gist.github.com/...'

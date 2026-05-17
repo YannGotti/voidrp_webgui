@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import net.minecraft.client.MinecraftClient;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.browser.CefMessageRouter;
@@ -58,7 +59,7 @@ public final class WebviewPageToClientBridge {
                 log(level, msg);
             }
             case "close" -> {
-                net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+                MinecraftClient mc = MinecraftClient.getInstance();
                 mc.execute(() -> {
                     if (mc.currentScreen instanceof WebViewScreen) {
                         mc.currentScreen.close();

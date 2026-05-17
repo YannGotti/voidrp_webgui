@@ -20,6 +20,7 @@ public final class WebGUIClient implements ClientModInitializer {
             WebGUIMod.LOGGER.info("WebGUI bridge ready (console log, page↔game, client data).");
         });
 
+        //? if >=1.20.5 {
         ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.OpenWebS2CPayload.ID, (payload, context) -> {
             if (payload.protocolVersion() != WebviewNetworking.PROTOCOL_VERSION) {
                 return;
@@ -30,6 +31,22 @@ public final class WebGUIClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.WebUIMainMenuPayload.ID, (payload, context) -> {
             context.client().execute(() -> WebGUIMainMenuUrl.setUrl(payload.url()));
         });
+        //? } else {
+        /*ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.OPEN_WEB_CHANNEL, (client, handler, buf, responseSender) -> {
+            int protocolVersion = buf.readVarInt();
+            int displayMode = buf.readVarInt();
+            String url = buf.readString(WebviewNetworking.MAX_URL_LENGTH);
+            if (protocolVersion != WebviewNetworking.PROTOCOL_VERSION) {
+                return;
+            }
+            client.execute(() -> handleOpenPayload(client, displayMode, url));
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.MAIN_MENU_CHANNEL, (client, handler, buf, responseSender) -> {
+            String url = buf.readString(WebviewNetworking.MAX_URL_LENGTH);
+            client.execute(() -> WebGUIMainMenuUrl.setUrl(url));
+        });*/
+        //? }
 
         WebGUIKeys.register();
         WebHudOverlay.register();

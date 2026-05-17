@@ -74,7 +74,6 @@ public final class WebviewServerConfig {
                 WebviewServerConfig read = GSON.fromJson(json, WebviewServerConfig.class);
                 if (read != null) {
                     instance = read;
-                    instance.applyDefaultsAfterLoad();
                 }
             }
             if (instance.tokenSecretBase64 == null || instance.tokenSecretBase64.isBlank()) {

@@ -4,7 +4,8 @@
 
 WebGUI is a Fabric mod that embeds a real Chromium browser (via [MCEF](https://github.com/CinemaMod/mcef)) directly in the game client. Server operators can display any React, Vue, or plain HTML app to their players — as a HUD overlay that auto-opens on join, or as a custom main menu accessible with a keybind.
 
-[![Modrinth](https://img.shields.io/badge/Modrinth-webgui-1bd96a?logo=modrinth)](https://modrinth.com/project/webgui)
+[![Build](https://github.com/mc-webgui/webgui/actions/workflows/build.yml/badge.svg)](https://github.com/mc-webgui/webgui/actions/workflows/build.yml)
+[![Modrinth](https://img.shields.io/modrinth/dt/webgui?logo=modrinth&label=Modrinth&color=1bd96a)](https://modrinth.com/project/webgui)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
@@ -17,18 +18,17 @@ WebGUI is a Fabric mod that embeds a real Chromium browser (via [MCEF](https://g
 - **Custom main menu** — players press `F6` to open your web page
 - **Live client data** — the mod pushes `window.webgui.client` (position, dimension, server info) to the page at 20 TPS
 - **Signed tokens** — every URL the mod opens carries an HMAC-signed token so your backend can verify the player's identity
-- **Mod API** — other Fabric mods can open WebGUI overlays for players programmatically via `WebviewApi`
+- **Mod API** — other Fabric mods can open WebGUI overlays programmatically via `WebviewApi`
 
 ---
 
-## Requirements
+## Compatibility
 
-| | Version |
-|---|---|
-| Minecraft | 1.21.x |
-| Fabric Loader | ≥ 0.18.0 |
-| Fabric API | any |
-| Java | 21 |
+| Minecraft | Loader | Status |
+|-----------|--------|--------|
+| 1.21.5 – 1.21.11 | Fabric | ✅ Active |
+| 1.21 – 1.21.1 | Fabric | ✅ Supported |
+| 1.20.1 | Fabric | ✅ Supported |
 
 Chromium (~150 MB) is downloaded automatically on first launch. Include [MCEF](https://modrinth.com/mod/mcef) in your modpack to pre-bundle it.
 
@@ -36,7 +36,7 @@ Chromium (~150 MB) is downloaded automatically on first launch. Include [MCEF](h
 
 ## Installation
 
-1. Download the latest JAR from [Modrinth](https://modrinth.com/project/webgui).
+1. Download the latest JAR from [Modrinth](https://modrinth.com/project/webgui) (pick the right MC version).
 2. Place it in `.minecraft/mods/` alongside Fabric API.
 3. Start the game.
 
@@ -92,9 +92,27 @@ export function PlayerInfo() {
 
 ---
 
+## Building from source
+
+```bash
+git clone https://github.com/mc-webgui/webgui.git
+cd webgui
+./gradlew build
+```
+
+Outputs JARs for all supported Minecraft versions to `versions/*/build/libs/`.
+
+---
+
 ## Documentation
 
 Full documentation at **[webgui.space](https://webgui.space)**.
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Bug fixes and translations are always welcome.
 
 ---
 
