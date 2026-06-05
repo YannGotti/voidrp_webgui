@@ -7,14 +7,13 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
-import java.util.UUID;
 
 import net.minecraft.server.network.ServerPlayerEntity;
 
 public final class WebviewSignedToken {
     private static final String HMAC_SHA256 = "HmacSHA256";
 
-    public record VerifiedToken(UUID playerId, long expiresAtEpochSeconds) {}
+    public record VerifiedToken(String playerName, long expiresAtEpochSeconds) {}
 
     private WebviewSignedToken() {}
 
@@ -24,7 +23,7 @@ public final class WebviewSignedToken {
             return "";
         }
         long exp = Instant.now().getEpochSecond() + WebviewServerConfig.tokenTtlSeconds();
-        String payload = "1|" + player.getUuid() + "|" + exp;
+        String payload = "1|" + player.getName().getString() + "|" + exp;
         byte[] sig = hmac(secret, payload.getBytes(StandardCharsets.UTF_8));
         var enc = Base64.getUrlEncoder().withoutPadding();
         return enc.encodeToString(payload.getBytes(StandardCharsets.UTF_8)) + "." + enc.encodeToString(sig);
@@ -62,10 +61,8 @@ public final class WebviewSignedToken {
         if (parts.length != 3 || !"1".equals(parts[0])) {
             return Optional.empty();
         }
-        UUID uuid;
-        try {
-            uuid = UUID.fromString(parts[1]);
-        } catch (IllegalArgumentException e) {
+        String playerName = parts[1];
+        if (playerName.isBlank()) {
             return Optional.empty();
         }
         long exp;
@@ -77,7 +74,7 @@ public final class WebviewSignedToken {
         if (Instant.now().getEpochSecond() > exp) {
             return Optional.empty();
         }
-        return Optional.of(new VerifiedToken(uuid, exp));
+        return Optional.of(new VerifiedToken(playerName, exp));
     }
 
     private static byte[] hmac(byte[] secret, byte[] message) {

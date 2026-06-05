@@ -108,6 +108,6 @@ public final class WebviewCommands {
                                                                     () -> Text.literal("Web HUD → " + players.size() + " player(s)"),
                                                                     true);
                                                             return players.size();
-                                                        }))))));
+                                                        })))));
     }
 }
