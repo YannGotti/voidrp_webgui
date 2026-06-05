@@ -13,7 +13,6 @@ public final class WebGUIMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        WebviewNetworking.registerPayloadTypes();
         WebviewNetworking.registerServerReceivers();
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             WebviewServerConfig.load();

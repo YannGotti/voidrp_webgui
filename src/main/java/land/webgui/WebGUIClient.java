@@ -9,6 +9,8 @@ public final class WebGUIClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        WebviewNetworking.registerPayloadTypes();
+
         MCEF.scheduleForInit(success -> {
             if (!success) {
                 WebGUIMod.LOGGER.error("MCEF (Chromium) failed to initialize — web GUI will not work.");
