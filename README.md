@@ -1,121 +1,146 @@
-# WebGUI
+# voidrp_webgui
 
-**Embed any web page as a full-screen GUI or transparent HUD overlay inside Minecraft.**
+**Форк [WebGUI](https://github.com/mc-webgui/webgui) — встроенный Chromium-браузер в Minecraft-клиенте для проекта VoidRP.**
 
-WebGUI is a Fabric mod that embeds a real Chromium browser (via [MCEF](https://github.com/CinemaMod/mcef)) directly in the game client. Server operators can display any React, Vue, or plain HTML app to their players — as a HUD overlay that auto-opens on join, or as a custom main menu accessible with a keybind.
-
-[![Build](https://github.com/mc-webgui/webgui/actions/workflows/build.yml/badge.svg)](https://github.com/mc-webgui/webgui/actions/workflows/build.yml)
-[![Modrinth](https://img.shields.io/modrinth/dt/webgui?logo=modrinth&label=Modrinth&color=1bd96a)](https://modrinth.com/project/webgui)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+Мод встраивает настоящий браузер (через [MCEF](https://github.com/CinemaMod/mcef)) прямо в игровой клиент. Сервер отправляет игроку URL — клиент открывает его как полноэкранный интерфейс или прозрачный HUD-оверлей поверх игры. Весь in-game UI VoidRP реализован на Vue 3 и обслуживается бэкендом (`void-rp.ru`) — никаких Bukkit-инвентарей.
 
 ---
 
-## Features
+## Как используется в VoidRP
 
-- **Full-screen GUI** — open any URL as a screen that closes with Esc
-- **HUD overlay** — transparent overlay on top of the game; toggle interactive mode with `` ` ``
-- **Auto HUD on join** — automatically shows a HUD overlay when a player connects
-- **Custom main menu** — players press `F6` to open your web page
-- **Live client data** — the mod pushes `window.webgui.client` (position, dimension, server info) to the page at 20 TPS
-- **Signed tokens** — every URL the mod opens carries an HMAC-signed token so your backend can verify the player's identity
-- **Mod API** — other Fabric mods can open WebGUI overlays programmatically via `WebviewApi`
+### Серверная сторона
+
+Сервер работает на **NeoForge 1.21.1-232** с **Sinytra Connector** — он позволяет запускать Fabric-моды (в том числе этот) на NeoForge. Серверная часть мода работает полноценно: автоматически подписывает токены, открывает HUD при входе, регистрирует команды.
+
+Плагин `voidrp_gamesync_plugin` (Paper) открывает интерфейсы через консольную команду:
+```
+/webgui gui <nick> <url>
+/webgui hud <nick> <url>
+```
+
+### Что открывается
+
+| Триггер | Что открывается |
+|---|---|
+| Вход на сервер | HUD-оверлей: баланс, нация, прогресс квестов |
+| Клавиша `F6` | Главное меню сервера |
+| `/pm`, `/shop` | Игроцкий рынок (книга ордеров, мои ордера) |
+| `/nmarket` | Национальный рынок |
+| `/ntreasury` | Казна нации |
+| `/ally` | Альянсы и голосования |
+| `/bp` | Боевой пропуск |
+| `/quests` | Ежедневные квесты |
+
+### Аутентификация
+
+При каждом открытии URL мод автоматически добавляет подписанный токен (`?webgui_token=...`). Бэкенд верифицирует его через HMAC-SHA256 и определяет, какой игрок делает запрос — без паролей и сессий.
+
+Секрет хранится в `config/webgui/server.json` на сервере и в `.env` бэкенда.
+
+### Кастомизации этого форка
+
+По сравнению с оригиналом добавлены каналы в `WebviewPageToClientBridge`:
+
+- `{"channel": "run_command", "text": "/pm pickup"}` — выполнить команду от имени игрока прямо со страницы
+- `{"channel": "open_gui", "url": "https://..."}` — открыть другой GUI без round-trip через сервер
+- `{"channel": "open_hud", "url": "https://..."}` — сменить HUD без round-trip
+
+Это позволяет главному меню (F6) переключать разделы без лишних сетевых запросов.
 
 ---
 
-## Compatibility
+## Клиентская установка
 
-| Minecraft | Loader | Status |
-|-----------|--------|--------|
-| 1.21.5 – 1.21.11 | Fabric | ✅ Active |
-| 1.21 – 1.21.1 | Fabric | ✅ Supported |
-| 1.20.1 | Fabric | ✅ Supported |
+Мод обязателен в модпаке VoidRP и поставляется через лаунчер автоматически. Ручная установка не требуется.
 
-Chromium (~150 MB) is downloaded automatically on first launch. Include [MCEF](https://modrinth.com/mod/mcef) in your modpack to pre-bundle it.
+Зависимости (все поставляются лаунчером):
+- Fabric API
+- MCEF — Chromium (~150 МБ) в комплекте, без авто-скачивания при старте
 
 ---
 
-## Installation
+## Сборка
 
-1. Download the latest JAR from [Modrinth](https://modrinth.com/project/webgui) (pick the right MC version).
-2. Place it in `.minecraft/mods/` alongside Fabric API.
-3. Start the game.
+```bash
+# Сборка под нашу версию (1.21.1)
+./gradlew build -P stonecutter.version=1.21.1
+
+# Выходной jar
+versions/1.21.1/build/libs/webgui-*.jar
+```
+
+Собранный jar кладётся в клиентский модпак: `/home/mironoouv/launcher/pack/mods/`.
 
 ---
 
-## Quick setup (server)
+## Конфигурация сервера
 
-Create or edit `config/webgui/server.json`:
+Файл `config/webgui/server.json` (генерируется автоматически при первом запуске):
 
 ```json
 {
+  "enableTokens": true,
+  "tokenTtlSeconds": 7200,
   "autoHudOnJoin": true,
-  "autoHudUrl": "https://your-hud.example.com",
-  "mainMenuUrl": "https://your-menu.example.com"
+  "autoHudUrl": "https://void-rp.ru/game-ui/hud",
+  "mainMenuUrl": "https://void-rp.ru/game-ui/menu"
 }
 ```
 
-Restart the server and join to test.
+`tokenSecretBase64` генерируется автоматически и должен быть скопирован в `.env` бэкенда как `WEBGUI_TOKEN_SECRET_BASE64`.
 
 ---
 
-## Server commands
+## Серверные команды
 
 ```
-/webgui gui <targets> <url>   — open a full-screen GUI for players
-/webgui hud <targets> <url>   — open a HUD overlay for players
+/webgui gui <игрок> <url>   — открыть полноэкранный GUI
+/webgui hud <игрок> <url>   — открыть HUD-оверлей
 ```
 
-Requires operator level 2. Supports `fabric-permissions-api` (LuckPerms, etc.).
+Требует оператора уровня 2 или разрешение `webgui.command` через LuckPerms.
 
 ---
 
-## React library
+## Структура репозитория
 
-Build your SPA with type-safe hooks:
-
-```bash
-npm install @webgui/react
+```
+src/main/java/land/webgui/
+├── api/WebviewApi.java               — публичный API для других модов
+├── server/
+│   ├── WebviewServerConfig.java      — читает server.json, хранит секрет
+│   ├── WebviewSignedToken.java       — генерация и верификация HMAC-токенов
+│   └── WebviewUrlBuilder.java        — добавляет ?webgui_token= к URL
+├── WebviewCommands.java              — /webgui gui|hud
+├── WebviewJoinHud.java               — авто-HUD и mainMenu при входе
+├── WebviewNetworking.java            — S2C пакеты: webgui:open_web, webgui:set_main_menu
+├── WebviewPayloads.java              — ID каналов и кодеки пакетов
+├── WebviewPageToClientBridge.java    — JS→клиент bridge (run_command, open_gui и др.)
+├── WebviewClientBridge.java          — пушит window.webgui.client на каждом тике
+├── WebViewScreen.java                — полноэкранный GUI экран
+└── WebHudOverlay.java                — прозрачный HUD-оверлей
+versions/
+├── 1.20.1/                           — конфиг Stonecutter для 1.20.1
+└── 1.21.1/                           — наша целевая версия
 ```
 
-```tsx
-import { useWebGUIClient, isInMod, isReady } from '@webgui/react';
+---
 
-export function PlayerInfo() {
-  const client = useWebGUIClient();
-  if (!isInMod())       return <p>Open this inside Minecraft.</p>;
-  if (!isReady(client)) return <p>Connecting…</p>;
-  return <p>Hello, {client!.username}</p>;
-}
+## Протокол пакетов (для справки при отладке)
+
+Если `dispatchCommand` через Connector не работает, плагин может слать пакеты напрямую:
+
+| Канал | Payload |
+|---|---|
+| `webgui:open_web` | `VarInt(protocolVersion=1) + VarInt(mode: 0=GUI/1=HUD) + MCString(url)` |
+| `webgui:set_main_menu` | `MCString(url)` |
+
+```java
+player.sendPluginMessage(plugin, "webgui:open_web", bytes);
 ```
 
-→ [npm: @webgui/react](https://www.npmjs.com/package/@webgui/react) · [Docs](https://webgui.space)
-
 ---
 
-## Building from source
+## Лицензия
 
-```bash
-git clone https://github.com/mc-webgui/webgui.git
-cd webgui
-./gradlew build
-```
-
-Outputs JARs for all supported Minecraft versions to `versions/*/build/libs/`.
-
----
-
-## Documentation
-
-Full documentation at **[webgui.space](https://webgui.space)**.
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Bug fixes and translations are always welcome.
-
----
-
-## License
-
-[MIT](LICENSE) © KoSHeroff
+[MIT](LICENSE) © KoSHeroff (оригинал) — форк для проекта VoidRP.
