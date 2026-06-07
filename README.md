@@ -1,8 +1,90 @@
 # voidrp_webgui
 
-**Форк [WebGUI](https://github.com/mc-webgui/webgui) — встроенный Chromium-браузер в Minecraft-клиенте для проекта VoidRP.**
+**Форк [WebGUI](https://github.com/mc-webgui/webgui) v1.3.0 — встроенный Chromium-браузер в Minecraft-клиенте для проекта VoidRP.**
 
 Мод встраивает настоящий браузер (через [MCEF](https://github.com/CinemaMod/mcef)) прямо в игровой клиент. Сервер отправляет игроку URL — клиент открывает его как полноэкранный интерфейс или прозрачный HUD-оверлей поверх игры. Весь in-game UI VoidRP реализован на Vue 3 и обслуживается бэкендом (`void-rp.ru`) — никаких Bukkit-инвентарей.
+
+---
+
+## Нововведения v1.3.0 (относительно v1.1.0)
+
+### Двунаправленные события page↔game (v1.2.0)
+
+Сервер теперь может посылать именованные события прямо в JS-контекст открытой страницы, и наоборот — страница может слать события на сервер.
+
+**Server → Page:**
+```java
+// в любом серверном коде
+WebviewApi.emitToPage(player, "market:order_filled", "{\"item\":\"iron\",\"amount\":64}");
+```
+```js
+// в браузере
+window.addEventListener("webgui:market:order_filled", e => {
+    console.log(e.detail); // { item: "iron", amount: 64 }
+});
+```
+
+**Page → Server:**
+```js
+// в браузере
+window.webgui.postToServer("shop:buy_clicked", JSON.stringify({ itemId: "iron_sword" }));
+```
+```java
+// регистрация хендлера один раз при старте
+WebviewApi.registerPageEventHandler("shop:buy_clicked", (player, json) -> {
+    // обработать покупку
+});
+```
+
+### Entity Binding — привязка WebGUI к сущностям (v1.3.0)
+
+Любую сущность можно привязать к URL: игрок делает ПКМ по ней — открывается браузер.
+
+```
+/webgui bind entity <selector> <url> [cancelInteraction]
+/webgui unbind entity <selector>
+```
+
+В URL поддерживаются плейсхолдеры: `{entityId}`, `{entityType}`, `{playerName}`, `{playerUuid}`.
+
+В JS доступен контекст сущности:
+```js
+console.log(window.webgui.entity);
+// { id: "...", type: "minecraft:villager", x: 100, y: 64, z: 200 }
+```
+
+Привязки хранятся в `config/webgui/entity_bindings.json` и переживают перезапуск сервера.
+
+### Горячая перезагрузка конфига
+
+```
+/webgui reload   — перечитывает server.json и entity_bindings.json без рестарта
+```
+
+---
+
+## Кастомизации этого форка
+
+### NeoForge: фикс channel negotiation disconnect
+
+**Проблема:** На NeoForge + Sinytra Connector оригинальный мод регистрировал S2C-каналы в `WebGUIMod.onInitialize()`. Connector помечал их как «клиент требует от сервера» → NeoForge разрывал соединение при входе с ошибкой `multiplayer.disconnect.incompatible`.
+
+**Фикс:** `WebviewNetworking.registerPayloadTypes()` перенесён исключительно в `WebGUIClient.onInitializeClient()`. Серверная сторона регистрирует только `registerServerReceivers()`.
+
+### Изменённый формат токена
+
+Токен содержит **ник игрока** вместо UUID (оригинал использовал UUID). Причина: Mohist-сервер не хранит Mojang UUID в контексте, доступном из Fabric API.
+
+```
+payload = "1|<playerName>|<expiresAtEpoch>"
+token   = base64url(payload) + "." + base64url(HMAC-SHA256(payload, secret))
+```
+
+Верификация в `WebviewSignedToken.java` соответственно работает с `playerName`, не с UUID.
+
+### Прокси для сборки
+
+В `gradle.properties` добавлены прокси-настройки для загрузки зависимостей через локальный туннель — нужны только при сборке на сервере разработки.
 
 ---
 
@@ -12,50 +94,72 @@
 
 Сервер работает на **NeoForge 1.21.1-232** с **Sinytra Connector** — он позволяет запускать Fabric-моды (в том числе этот) на NeoForge. Серверная часть мода работает полноценно: автоматически подписывает токены, открывает HUD при входе, регистрирует команды.
 
-Плагин `voidrp_gamesync_plugin` (Paper) открывает интерфейсы через консольную команду:
-```
-/webgui gui <nick> <url>
-/webgui hud <nick> <url>
+Плагин `voidrp_gamesync_plugin` (Paper) открывает интерфейсы через прямую отправку plugin-channel пакетов (не через команды — Bukkit не диспатчит Fabric-команды через Connector):
+
+```java
+// WebGuiBridgeService.java в плагине
+webGuiBridge.openGui(player, "https://void-rp.ru/game-ui/market");
+webGuiBridge.openHud(player, "https://void-rp.ru/game-ui/hud");
+webGuiBridge.sendMainMenuUrl(player, "https://void-rp.ru/game-ui/menu");
 ```
 
 ### Что открывается
 
-| Триггер | Что открывается |
-|---|---|
-| Вход на сервер | HUD-оверлей: баланс, нация, прогресс квестов |
-| Клавиша `F6` | Главное меню сервера |
-| `/pm`, `/shop` | Игроцкий рынок (книга ордеров, мои ордера) |
-| `/nmarket` | Национальный рынок |
-| `/ntreasury` | Казна нации |
-| `/ally` | Альянсы и голосования |
-| `/bp` | Боевой пропуск |
-| `/quests` | Ежедневные квесты |
+| Триггер | Что открывается | Статус |
+|---|---|---|
+| Вход на сервер | HUD-оверлей | запланировано |
+| Клавиша `F6` | Главное меню сервера | запланировано |
+| `/pm`, `/shop` | Игровой рынок (книга ордеров, мои ордера, история) | **готово** |
+| `/nmarket` | Национальный рынок | запланировано |
+| `/ntreasury` | Казна нации | запланировано |
+| `/ally` | Альянсы и голосования | запланировано |
+| `/bp` | Боевой пропуск | запланировано |
+| `/quests` | Ежедневные квесты | запланировано |
 
 ### Аутентификация
 
-При каждом открытии URL мод автоматически добавляет подписанный токен (`?webgui_token=...`). Бэкенд верифицирует его через HMAC-SHA256 и определяет, какой игрок делает запрос — без паролей и сессий.
+При каждом открытии URL мод автоматически добавляет подписанный токен (`?webgui_token=...`). Бэкенд верифицирует его через HMAC-SHA256 и определяет игрока по нику — без паролей и сессий.
 
-Секрет хранится в `config/webgui/server.json` на сервере и в `.env` бэкенда.
-
-### Кастомизации этого форка
-
-По сравнению с оригиналом добавлены каналы в `WebviewPageToClientBridge`:
-
-- `{"channel": "run_command", "text": "/pm pickup"}` — выполнить команду от имени игрока прямо со страницы
-- `{"channel": "open_gui", "url": "https://..."}` — открыть другой GUI без round-trip через сервер
-- `{"channel": "open_hud", "url": "https://..."}` — сменить HUD без round-trip
-
-Это позволяет главному меню (F6) переключать разделы без лишних сетевых запросов.
+Секрет хранится в `config/webgui/server.json` на сервере и в `.env` бэкенда (`WEBGUI_TOKEN_SECRET_BASE64`).
 
 ---
 
-## Клиентская установка
+## План интеграции (статус)
 
-Мод обязателен в модпаке VoidRP и поставляется через лаунчер автоматически. Ручная установка не требуется.
+### Этап 0: Фундамент — **готово**
 
-Зависимости (все поставляются лаунчером):
-- Fabric API
-- MCEF — Chromium (~150 МБ) в комплекте, без авто-скачивания при старте
+- [x] Сборка и деплой jar (сервер + лаунчер-пак)
+- [x] `config/webgui/server.json` настроен (токен, TTL=7200, autoHud)
+- [x] Верификация токена в FastAPI (`dependencies/webgui_auth.py`)
+- [x] `WebGuiBridgeService.java` в плагине: `openGui`, `openHud`, `sendMainMenuUrl`
+- [x] `/webgui reload` — горячая перезагрузка конфига
+- [x] Зеркало MCEF на `void-rp.ru/launcher/mcef` (избегает GitHub при старте)
+- [x] NeoForge channel negotiation фикс
+
+### Этап 1: Player Market — **готово**
+
+- [x] Бэкенд: `/api/v1/game-ui/market/*` (order book, мои ордера, история, pending actions)
+- [x] Плагин: `WebActionPollService` — исполняет buy/cancel/pickup через Vault
+- [x] Фронтенд: `GameUiMarketView.vue` (вкладки, polling 5 сек, i18n ru+en)
+- [x] `/pm`, `/shop` → `webGuiBridge.openMarket(player)` когда `webgui.enabled: true`
+
+### Этап 2: HUD-оверлей — *в планах*
+
+- [ ] Бэкенд: `GET /game-ui/hud/snapshot` (баланс через кэш, нация, квесты, незабранные доставки)
+- [ ] Плагин: пуш баланса в кэш на join и раз в 30 сек
+- [ ] Фронтенд: `GameUiHudView.vue` — минималистичный оверлей, polling 10 сек
+
+### Этап 3: Main Menu (F6) — *в планах*
+
+- [ ] Фронтенд: `GameUiMenuView.vue` — кнопки разделов, навигация через `postToGame`
+
+### Этапы 4-8: Nation Market, Treasury, Alliance, Battle Pass, Quests — *в планах*
+
+Паттерн одинаковый для каждого: бэкенд-роутер с `webgui_auth` dependency → pending actions для Vault-операций → Vue view с polling.
+
+### Этап 9: CPM Cosmetics — *в планах*
+
+NeoForge мод открывает WebGUI через Paper-плагин (команда `/vc gui <player>`).
 
 ---
 
@@ -66,10 +170,18 @@
 ./gradlew build -P stonecutter.version=1.21.1
 
 # Выходной jar
-versions/1.21.1/build/libs/webgui-*.jar
+versions/1.21.1/build/libs/webgui-1.3.0+mc1.21.1.jar
 ```
 
-Собранный jar кладётся в клиентский модпак: `/home/mironoouv/launcher/pack/mods/`.
+Деплой после сборки:
+```bash
+# Сервер
+cp versions/1.21.1/build/libs/webgui-1.3.0+mc1.21.1.jar /home/mironoouv/minecraft/minecraft_server/mods/
+
+# Лаунчер-пак + манифест
+cp versions/1.21.1/build/libs/webgui-1.3.0+mc1.21.1.jar /home/mironoouv/launcher/pack/mods/
+python3 /home/mironoouv/minecraft/scripts/generate_launcher_manifest.py
+```
 
 ---
 
@@ -81,24 +193,27 @@ versions/1.21.1/build/libs/webgui-*.jar
 {
   "enableTokens": true,
   "tokenTtlSeconds": 7200,
-  "autoHudOnJoin": true,
+  "autoHudOnJoin": false,
   "autoHudUrl": "https://void-rp.ru/game-ui/hud",
   "mainMenuUrl": "https://void-rp.ru/game-ui/menu"
 }
 ```
 
-`tokenSecretBase64` генерируется автоматически и должен быть скопирован в `.env` бэкенда как `WEBGUI_TOKEN_SECRET_BASE64`.
+`tokenSecretBase64` генерируется автоматически — скопировать в `.env` бэкенда как `WEBGUI_TOKEN_SECRET_BASE64`.
 
 ---
 
 ## Серверные команды
 
 ```
-/webgui gui <игрок> <url>   — открыть полноэкранный GUI
-/webgui hud <игрок> <url>   — открыть HUD-оверлей
+/webgui gui <игрок> <url>                         — открыть полноэкранный GUI
+/webgui hud <игрок> <url>                         — открыть HUD-оверлей
+/webgui bind entity <selector> <url> [cancel]     — привязать WebGUI к сущности
+/webgui unbind entity <selector>                  — отвязать
+/webgui reload                                    — перезагрузить server.json и entity_bindings.json
 ```
 
-Требует оператора уровня 2 или разрешение `webgui.command` через LuckPerms.
+Требует оператора уровня 2.
 
 ---
 
@@ -106,35 +221,45 @@ versions/1.21.1/build/libs/webgui-*.jar
 
 ```
 src/main/java/land/webgui/
-├── api/WebviewApi.java               — публичный API для других модов
+├── api/WebviewApi.java                   — публичный API: emitToPage, registerPageEventHandler
 ├── server/
-│   ├── WebviewServerConfig.java      — читает server.json, хранит секрет
-│   ├── WebviewSignedToken.java       — генерация и верификация HMAC-токенов
-│   └── WebviewUrlBuilder.java        — добавляет ?webgui_token= к URL
-├── WebviewCommands.java              — /webgui gui|hud
-├── WebviewJoinHud.java               — авто-HUD и mainMenu при входе
-├── WebviewNetworking.java            — S2C пакеты: webgui:open_web, webgui:set_main_menu
-├── WebviewPayloads.java              — ID каналов и кодеки пакетов
-├── WebviewPageToClientBridge.java    — JS→клиент bridge (run_command, open_gui и др.)
-├── WebviewClientBridge.java          — пушит window.webgui.client на каждом тике
-├── WebViewScreen.java                — полноэкранный GUI экран
-└── WebHudOverlay.java                — прозрачный HUD-оверлей
+│   ├── EntityBinding.java                — модель привязки (url, cancelInteraction)
+│   ├── WebviewEntityContext.java         — JSON-контекст сущности для JS
+│   ├── WebviewPlaceholders.java          — подстановка {entityId}, {entityType} и др. в URL
+│   ├── WebviewServerConfig.java          — читает server.json, хранит секрет
+│   ├── WebviewServerEvents.java          — хендлеры page→server событий
+│   ├── WebviewSignedToken.java           — HMAC-SHA256 генерация/верификация токенов
+│   └── WebviewUrlBuilder.java            — добавляет ?webgui_token= к URL
+├── EntityBindingStore.java               — хранит UUID→binding, читает/пишет entity_bindings.json
+├── EntityInteractionListener.java        — ПКМ по сущности → открыть привязанный URL
+├── WebviewClientEmit.java                — dispatch server→page событий в JS (window.dispatchEvent)
+├── WebviewCommands.java                  — /webgui gui|hud|bind|unbind|reload
+├── WebviewJoinHud.java                   — авто-HUD и mainMenu при входе
+├── WebviewNetworking.java                — S2C пакеты + server receivers
+├── WebviewPageToClientBridge.java        — JS→клиент bridge (close, log, run_command и др.)
+├── WebviewPayloads.java                  — ID каналов и кодеки всех пакетов
+├── WebviewClientBridge.java              — пушит window.webgui.client + entity context на тике
+├── WebViewScreen.java                    — полноэкранный GUI экран
+└── WebHudOverlay.java                    — прозрачный HUD-оверлей
 versions/
-├── 1.20.1/                           — конфиг Stonecutter для 1.20.1
-└── 1.21.1/                           — наша целевая версия
+├── 1.20.1/                               — конфиг Stonecutter для 1.20.1
+├── 1.21.1/                               — наша целевая версия
+└── 1.21.11/                              — конфиг Stonecutter для 1.21.11
 ```
 
 ---
 
-## Протокол пакетов (для справки при отладке)
+## Протокол пакетов
 
-Если `dispatchCommand` через Connector не работает, плагин может слать пакеты напрямую:
+| Канал | Направление | Payload |
+|---|---|---|
+| `webgui:open_web` | S2C | `VarInt(protocolVersion=1) + VarInt(mode: 0=GUI/1=HUD) + MCString(url)` |
+| `webgui:set_main_menu` | S2C | `MCString(url)` |
+| `webgui:emit_to_page` | S2C | `MCString(eventName) + MCString(jsonPayload)` |
+| `webgui:entity_context` | S2C | `MCString(entityJson)` |
+| `webgui:page_to_server` | C2S | `MCString(eventName) + MCString(jsonPayload)` |
 
-| Канал | Payload |
-|---|---|
-| `webgui:open_web` | `VarInt(protocolVersion=1) + VarInt(mode: 0=GUI/1=HUD) + MCString(url)` |
-| `webgui:set_main_menu` | `MCString(url)` |
-
+Пример прямой отправки из Paper-плагина (если нужно обойти Fabric-команды):
 ```java
 player.sendPluginMessage(plugin, "webgui:open_web", bytes);
 ```
