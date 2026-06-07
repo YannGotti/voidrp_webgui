@@ -27,6 +27,7 @@ public final class WebviewNetworking {
         PayloadTypeRegistry.playS2C().register(WebviewPayloads.OpenWebS2CPayload.ID, WebviewPayloads.OpenWebS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(WebviewPayloads.WebUIMainMenuPayload.ID, WebviewPayloads.WebUIMainMenuPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(WebviewPayloads.WebviewEmitS2CPayload.ID, WebviewPayloads.WebviewEmitS2CPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(WebviewPayloads.WebviewEntityContextS2CPayload.ID, WebviewPayloads.WebviewEntityContextS2CPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(WebviewPayloads.WebviewPageEventC2SPayload.ID, WebviewPayloads.WebviewPageEventC2SPayload.CODEC);
         //? }
     }
@@ -50,6 +51,7 @@ public final class WebviewNetworking {
     }
 
     public static void openGui(ServerPlayerEntity player, String url) {
+        clearEntityContext(player);
         //? if >=1.20.5 {
         ServerPlayNetworking.send(player, new WebviewPayloads.OpenWebS2CPayload(PROTOCOL_VERSION, MODE_GUI, withPlayerToken(player, url)));
         //? } else {
@@ -62,6 +64,7 @@ public final class WebviewNetworking {
     }
 
     public static void openHud(ServerPlayerEntity player, String url) {
+        clearEntityContext(player);
         //? if >=1.20.5 {
         ServerPlayNetworking.send(player, new WebviewPayloads.OpenWebS2CPayload(PROTOCOL_VERSION, MODE_HUD, withPlayerToken(player, url)));
         //? } else {
@@ -71,6 +74,34 @@ public final class WebviewNetworking {
         buf.writeString(withPlayerToken(player, url), MAX_URL_LENGTH);
         ServerPlayNetworking.send(player, WebviewPayloads.OPEN_WEB_CHANNEL, buf);*/
         //? }
+    }
+
+    /** Opens a GUI pre-loaded with entity context (sets window.webgui.entity in the browser). */
+    public static void openGuiForEntity(ServerPlayerEntity player, String url, String entityJson) {
+        sendEntityContext(player, entityJson);
+        //? if >=1.20.5 {
+        ServerPlayNetworking.send(player, new WebviewPayloads.OpenWebS2CPayload(PROTOCOL_VERSION, MODE_GUI, withPlayerToken(player, url)));
+        //? } else {
+        /*PacketByteBuf buf = PacketByteBufs.create();
+        buf.writeVarInt(PROTOCOL_VERSION);
+        buf.writeVarInt(MODE_GUI);
+        buf.writeString(withPlayerToken(player, url), MAX_URL_LENGTH);
+        ServerPlayNetworking.send(player, WebviewPayloads.OPEN_WEB_CHANNEL, buf);*/
+        //? }
+    }
+
+    public static void sendEntityContext(ServerPlayerEntity player, String entityJson) {
+        //? if >=1.20.5 {
+        ServerPlayNetworking.send(player, new WebviewPayloads.WebviewEntityContextS2CPayload(entityJson));
+        //? } else {
+        /*PacketByteBuf buf = PacketByteBufs.create();
+        buf.writeString(entityJson, WebviewPayloads.MAX_EVENT_DATA_LENGTH);
+        ServerPlayNetworking.send(player, WebviewPayloads.ENTITY_CONTEXT_CHANNEL, buf);*/
+        //? }
+    }
+
+    public static void clearEntityContext(ServerPlayerEntity player) {
+        sendEntityContext(player, "null");
     }
 
     public static void emitToPage(ServerPlayerEntity player, String eventName, String jsonPayload) {

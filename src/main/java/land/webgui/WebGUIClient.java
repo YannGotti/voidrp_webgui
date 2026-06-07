@@ -35,6 +35,10 @@ public final class WebGUIClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.WebviewEmitS2CPayload.ID, (payload, context) -> {
             context.client().execute(() -> WebviewClientEmit.dispatch(payload.eventName(), payload.jsonPayload()));
         });
+
+        ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.WebviewEntityContextS2CPayload.ID, (payload, context) -> {
+            context.client().execute(() -> WebviewClientBridge.setEntityContext(payload.entityJson()));
+        });
         //? } else {
         /*ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.OPEN_WEB_CHANNEL, (client, handler, buf, responseSender) -> {
             int protocolVersion = buf.readVarInt();
