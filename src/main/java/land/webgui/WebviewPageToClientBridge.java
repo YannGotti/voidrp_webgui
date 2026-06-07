@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
@@ -68,7 +69,20 @@ public final class WebviewPageToClientBridge {
                     }
                 });
             }
-            default -> WebGUIMod.LOGGER.info("[webgui page→game] [{}] {}", channel, request);
+            default -> {
+                if (request.length() > WebviewPayloads.MAX_EVENT_DATA_LENGTH) {
+                    WebGUIMod.LOGGER.warn("[webgui page→game] [{}] payload too large ({} bytes), dropping", channel, request.length());
+                    break;
+                }
+                MinecraftClient mc = MinecraftClient.getInstance();
+                if (mc.getNetworkHandler() != null) {
+                    String ch  = channel;
+                    String pay = request;
+                    mc.execute(() -> sendToServer(ch, pay));
+                } else {
+                    WebGUIMod.LOGGER.info("[webgui page→game] [{}] {}", channel, request);
+                }
+            }
         }
 
         callback.success("{\"ok\":true}");
@@ -81,6 +95,19 @@ public final class WebviewPageToClientBridge {
         } catch (JsonSyntaxException e) {
             return null;
         }
+    }
+
+    private static void sendToServer(String channel, String jsonPayload) {
+        //? if >=1.20.5 {
+        if (ClientPlayNetworking.canSend(WebviewPayloads.WebviewPageEventC2SPayload.ID)) {
+            ClientPlayNetworking.send(new WebviewPayloads.WebviewPageEventC2SPayload(channel, jsonPayload));
+        }
+        //? } else {
+        /*net.minecraft.network.PacketByteBuf buf = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+        buf.writeString(channel, WebviewPayloads.MAX_EVENT_NAME_LENGTH);
+        buf.writeString(jsonPayload, WebviewPayloads.MAX_EVENT_DATA_LENGTH);
+        ClientPlayNetworking.send(WebviewPayloads.PAGE_EVENT_CHANNEL, buf);*/
+        //? }
     }
 
     private static void log(String level, String msg) {

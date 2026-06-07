@@ -31,6 +31,10 @@ public final class WebGUIClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.WebUIMainMenuPayload.ID, (payload, context) -> {
             context.client().execute(() -> WebGUIMainMenuUrl.setUrl(payload.url()));
         });
+
+        ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.WebviewEmitS2CPayload.ID, (payload, context) -> {
+            context.client().execute(() -> WebviewClientEmit.dispatch(payload.eventName(), payload.jsonPayload()));
+        });
         //? } else {
         /*ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.OPEN_WEB_CHANNEL, (client, handler, buf, responseSender) -> {
             int protocolVersion = buf.readVarInt();
@@ -45,6 +49,12 @@ public final class WebGUIClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.MAIN_MENU_CHANNEL, (client, handler, buf, responseSender) -> {
             String url = buf.readString(WebviewNetworking.MAX_URL_LENGTH);
             client.execute(() -> WebGUIMainMenuUrl.setUrl(url));
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(WebviewPayloads.EMIT_TO_PAGE_CHANNEL, (client, handler, buf, responseSender) -> {
+            String eventName   = buf.readString(WebviewPayloads.MAX_EVENT_NAME_LENGTH);
+            String jsonPayload = buf.readString(WebviewPayloads.MAX_EVENT_DATA_LENGTH);
+            client.execute(() -> WebviewClientEmit.dispatch(eventName, jsonPayload));
         });*/
         //? }
 

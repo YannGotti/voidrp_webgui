@@ -1,6 +1,7 @@
 package land.webgui;
 
 import land.webgui.server.WebviewServerConfig;
+import land.webgui.server.WebviewServerEvents;
 import land.webgui.server.WebviewSignedToken;
 import land.webgui.server.WebviewUrlBuilder;
 //? if >=1.20.5 {
@@ -25,6 +26,26 @@ public final class WebviewNetworking {
         //? if >=1.20.5 {
         PayloadTypeRegistry.playS2C().register(WebviewPayloads.OpenWebS2CPayload.ID, WebviewPayloads.OpenWebS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(WebviewPayloads.WebUIMainMenuPayload.ID, WebviewPayloads.WebUIMainMenuPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(WebviewPayloads.WebviewEmitS2CPayload.ID, WebviewPayloads.WebviewEmitS2CPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(WebviewPayloads.WebviewPageEventC2SPayload.ID, WebviewPayloads.WebviewPageEventC2SPayload.CODEC);
+        //? }
+    }
+
+    public static void registerServerReceivers() {
+        //? if >=1.20.5 {
+        ServerPlayNetworking.registerGlobalReceiver(WebviewPayloads.WebviewPageEventC2SPayload.ID, (payload, context) -> {
+            ServerPlayerEntity player = context.player();
+            String channel = payload.channel();
+            String json    = payload.jsonPayload();
+            context.server().execute(() ->
+                    WebviewServerEvents.PAGE_EVENT.invoker().onPageEvent(player, channel, json));
+        });
+        //? } else {
+        /*ServerPlayNetworking.registerGlobalReceiver(WebviewPayloads.PAGE_EVENT_CHANNEL, (server, player, handler, buf, responseSender) -> {
+            String channel = buf.readString(WebviewPayloads.MAX_EVENT_NAME_LENGTH);
+            String json    = buf.readString(WebviewPayloads.MAX_EVENT_DATA_LENGTH);
+            server.execute(() -> WebviewServerEvents.PAGE_EVENT.invoker().onPageEvent(player, channel, json));
+        });*/
         //? }
     }
 
@@ -49,6 +70,19 @@ public final class WebviewNetworking {
         buf.writeVarInt(MODE_HUD);
         buf.writeString(withPlayerToken(player, url), MAX_URL_LENGTH);
         ServerPlayNetworking.send(player, WebviewPayloads.OPEN_WEB_CHANNEL, buf);*/
+        //? }
+    }
+
+    public static void emitToPage(ServerPlayerEntity player, String eventName, String jsonPayload) {
+        String name = sanitizeStr(eventName, WebviewPayloads.MAX_EVENT_NAME_LENGTH);
+        String data = (jsonPayload == null || jsonPayload.isBlank()) ? "null" : sanitizeStr(jsonPayload, WebviewPayloads.MAX_EVENT_DATA_LENGTH);
+        //? if >=1.20.5 {
+        ServerPlayNetworking.send(player, new WebviewPayloads.WebviewEmitS2CPayload(name, data));
+        //? } else {
+        /*PacketByteBuf buf = PacketByteBufs.create();
+        buf.writeString(name, WebviewPayloads.MAX_EVENT_NAME_LENGTH);
+        buf.writeString(data, WebviewPayloads.MAX_EVENT_DATA_LENGTH);
+        ServerPlayNetworking.send(player, WebviewPayloads.EMIT_TO_PAGE_CHANNEL, buf);*/
         //? }
     }
 
@@ -82,5 +116,10 @@ public final class WebviewNetworking {
             return url.substring(0, MAX_URL_LENGTH);
         }
         return url;
+    }
+
+    private static String sanitizeStr(String s, int maxLen) {
+        if (s == null) return "";
+        return s.length() > maxLen ? s.substring(0, maxLen) : s;
     }
 }

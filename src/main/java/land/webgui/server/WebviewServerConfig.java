@@ -167,4 +167,33 @@ public final class WebviewServerConfig {
         String u = instance.updateCheckUrl;
         return u == null ? "" : u.trim();
     }
+
+    /** Reloads server.json from disk. Returns a human-readable status line for command feedback. */
+    public static String reload() {
+        Path path = configPath();
+        try {
+            if (!Files.isRegularFile(path)) {
+                return "server.json not found — using current settings (path: " + path + ")";
+            }
+            String json = Files.readString(path, StandardCharsets.UTF_8);
+            WebviewServerConfig read = GSON.fromJson(json, WebviewServerConfig.class);
+            if (read == null) {
+                return "server.json is empty — using current settings";
+            }
+            instance = read;
+            instance.applyDefaultsAfterLoad();
+            if (instance.tokenSecretBase64 == null || instance.tokenSecretBase64.isBlank()) {
+                byte[] secret = new byte[32];
+                RANDOM.nextBytes(secret);
+                instance.tokenSecretBase64 = Base64.getEncoder().encodeToString(secret);
+                save();
+                WebGUIMod.LOGGER.info("webgui: generated new token secret during reload");
+            }
+            WebGUIMod.LOGGER.info("webgui: config reloaded from {}", path);
+            return "WebGUI config reloaded from " + path.getFileName();
+        } catch (IOException e) {
+            WebGUIMod.LOGGER.error("webgui: failed to reload config", e);
+            return "Reload failed: " + e.getMessage();
+        }
+    }
 }

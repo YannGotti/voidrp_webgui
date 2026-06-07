@@ -1,6 +1,7 @@
 package land.webgui;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
+import land.webgui.server.WebviewServerConfig;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
 //? if >=1.21.5 {
@@ -46,6 +47,12 @@ public final class WebviewCommands {
                                                                     true);
                                                             return players.size();
                                                         }))))
+                                .then(CommandManager.literal("reload")
+                                        .executes(ctx -> {
+                                            String msg = WebviewServerConfig.reload();
+                                            ctx.getSource().sendFeedback(() -> Text.literal(msg), true);
+                                            return 1;
+                                        }))
                                 .then(CommandManager.literal("hud")
                                         .then(CommandManager.argument("targets", EntityArgumentType.players())
                                                 .then(CommandManager.argument("url", StringArgumentType.greedyString())
