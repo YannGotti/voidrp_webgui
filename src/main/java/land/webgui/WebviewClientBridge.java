@@ -10,11 +10,19 @@ import net.minecraft.client.network.ClientPlayerEntity;
 public final class WebviewClientBridge {
     private static final Gson GSON = new Gson();
     private static String lastSentJson;
+    private static String pendingEntityContextJson;
 
     private WebviewClientBridge() {}
 
+    /** Called from the client networking thread; the actual push happens on the next tick. */
+    static void setEntityContext(String json) {
+        pendingEntityContextJson = json;
+        lastSentJson = null; // force re-push so the page gets updated immediately
+    }
+
     static void clearCache() {
         lastSentJson = null;
+        pendingEntityContextJson = null;
     }
 
     public static void tick(MinecraftClient client) {
@@ -38,16 +46,22 @@ public final class WebviewClientBridge {
         if (!hasMain && !hasHud) return;
 
         JsonObject payload = buildPayload(client, player);
-        String json = GSON.toJson(payload);
-        if (!ignoreDedup && json.equals(lastSentJson)) return;
-        lastSentJson = json;
+        String clientJson = GSON.toJson(payload);
+        String entityLiteral = (pendingEntityContextJson != null && !pendingEntityContextJson.equals("null"))
+                ? pendingEntityContextJson : "null";
+        String dedupKey = clientJson + "|entity=" + entityLiteral;
+        if (!ignoreDedup && dedupKey.equals(lastSentJson)) return;
+        lastSentJson = dedupKey;
 
         String js = "(function(){"
-                + "var c=" + json + ";"
+                + "var c=" + clientJson + ";"
+                + "var e=" + entityLiteral + ";"
                 + "if(typeof window.webgui==='undefined')window.webgui={};"
+                + "window.webgui.entity=e;"
                 + "window.webgui.client=c;"
-                + "try{window.dispatchEvent(new CustomEvent('webgui:client',{detail:c}));}catch(e){}"
-                + "if(typeof window.webgui.onClientInfo==='function')try{window.webgui.onClientInfo(c);}catch(e){console.error(e);}"
+                + "try{window.dispatchEvent(new CustomEvent('webgui:entity',{detail:e}));}catch(ex){}"
+                + "try{window.dispatchEvent(new CustomEvent('webgui:client',{detail:c}));}catch(ex){}"
+                + "if(typeof window.webgui.onClientInfo==='function')try{window.webgui.onClientInfo(c);}catch(ex){console.error(ex);}"
                 + "})();";
 
         if (hasMain) executeJs(main, js);

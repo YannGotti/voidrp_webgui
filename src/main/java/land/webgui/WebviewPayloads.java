@@ -15,10 +15,11 @@ public final class WebviewPayloads {
     public static final int MAX_EVENT_DATA_LENGTH = 32_768;
 
     // Channel identifiers — used in both legacy (1.20.1) and modern networking
-    public static final Identifier OPEN_WEB_CHANNEL  = Identifier.of(WebGUIMod.MOD_ID, "open_web");
-    public static final Identifier MAIN_MENU_CHANNEL = Identifier.of(WebGUIMod.MOD_ID, "set_main_menu");
-    public static final Identifier EMIT_TO_PAGE_CHANNEL = Identifier.of(WebGUIMod.MOD_ID, "emit_to_page");
-    public static final Identifier PAGE_EVENT_CHANNEL   = Identifier.of(WebGUIMod.MOD_ID, "page_event");
+    public static final Identifier OPEN_WEB_CHANNEL       = Identifier.of(WebGUIMod.MOD_ID, "open_web");
+    public static final Identifier MAIN_MENU_CHANNEL      = Identifier.of(WebGUIMod.MOD_ID, "set_main_menu");
+    public static final Identifier EMIT_TO_PAGE_CHANNEL   = Identifier.of(WebGUIMod.MOD_ID, "emit_to_page");
+    public static final Identifier PAGE_EVENT_CHANNEL     = Identifier.of(WebGUIMod.MOD_ID, "page_event");
+    public static final Identifier ENTITY_CONTEXT_CHANNEL = Identifier.of(WebGUIMod.MOD_ID, "entity_context");
 
     //? if >=1.20.5 {
     /** S2C: server emits a named event to the page. */
@@ -77,6 +78,21 @@ public final class WebviewPayloads {
                 PacketCodecs.string(WebviewNetworking.MAX_URL_LENGTH),
                 WebUIMainMenuPayload::url,
                 WebUIMainMenuPayload::new);
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    /** S2C: sets (or clears) the entity context for the currently open GUI. entityJson == "null" clears it. */
+    public record WebviewEntityContextS2CPayload(String entityJson) implements CustomPayload {
+        public static final CustomPayload.Id<WebviewEntityContextS2CPayload> ID =
+                new CustomPayload.Id<>(ENTITY_CONTEXT_CHANNEL);
+        public static final PacketCodec<RegistryByteBuf, WebviewEntityContextS2CPayload> CODEC = PacketCodec.tuple(
+                PacketCodecs.string(MAX_EVENT_DATA_LENGTH),
+                WebviewEntityContextS2CPayload::entityJson,
+                WebviewEntityContextS2CPayload::new);
 
         @Override
         public Id<? extends CustomPayload> getId() {

@@ -17,7 +17,9 @@ public final class WebGUIMod implements ModInitializer {
         WebviewNetworking.registerServerReceivers();
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             WebviewServerConfig.load();
+            EntityBindingStore.load();
         });
+        EntityInteractionListener.register();
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             WebGUIUpdateChecker.checkAsync();
         });
