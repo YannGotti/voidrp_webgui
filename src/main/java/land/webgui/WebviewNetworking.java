@@ -22,12 +22,29 @@ public final class WebviewNetworking {
 
     private WebviewNetworking() {}
 
+    /**
+     * Full registration: S2C + C2S payload types.
+     * Call from onInitializeClient() only — registering S2C here on the server causes Connector
+     * to add these channels to NeoForge's channel negotiation, which disconnects clients
+     * that registered them as optional via onInitializeClient().
+     */
     public static void registerPayloadTypes() {
         //? if >=1.20.5 {
         PayloadTypeRegistry.playS2C().register(WebviewPayloads.OpenWebS2CPayload.ID, WebviewPayloads.OpenWebS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(WebviewPayloads.WebUIMainMenuPayload.ID, WebviewPayloads.WebUIMainMenuPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(WebviewPayloads.WebviewEmitS2CPayload.ID, WebviewPayloads.WebviewEmitS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(WebviewPayloads.WebviewEntityContextS2CPayload.ID, WebviewPayloads.WebviewEntityContextS2CPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(WebviewPayloads.WebviewPageEventC2SPayload.ID, WebviewPayloads.WebviewPageEventC2SPayload.CODEC);
+        //? }
+    }
+
+    /**
+     * Server-only: registers only the C2S payload type needed by registerServerReceivers().
+     * S2C types must NOT be registered server-side — Connector would push them into
+     * NeoForge's negotiation table as required CLIENTBOUND channels, causing disconnect.
+     */
+    public static void registerServerC2SPayloadType() {
+        //? if >=1.20.5 {
         PayloadTypeRegistry.playC2S().register(WebviewPayloads.WebviewPageEventC2SPayload.ID, WebviewPayloads.WebviewPageEventC2SPayload.CODEC);
         //? }
     }
