@@ -15,16 +15,15 @@ public final class WebGUIMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        // On the server: register all payload types (both S2C and C2S) so that
-        // registerServerReceivers() can find the C2S type. Connector on the server
-        // correctly marks S2C channels as "server will send these" — no negotiation issue.
-        // On the client: skip here; onInitializeClient() handles registration instead,
-        // because Connector on the client would incorrectly add S2C channels to NeoForge's
-        // negotiation table causing disconnect ("client wants CLIENTBOUND but server doesn't support it").
+        // Server-only: register payload types AND server receivers together.
+        // On the client both are skipped here; onInitializeClient() registers payload types
+        // instead, because Connector on the client would incorrectly add S2C channels to
+        // NeoForge's negotiation table causing disconnect. registerServerReceivers() must
+        // not run on the client either — the C2S payload type won't be registered yet.
         if (FabricLoader.getInstance().getEnvironmentType() != EnvType.CLIENT) {
             WebviewNetworking.registerPayloadTypes();
+            WebviewNetworking.registerServerReceivers();
         }
-        WebviewNetworking.registerServerReceivers();
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             WebviewServerConfig.load();
             EntityBindingStore.load();
