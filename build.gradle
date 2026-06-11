@@ -75,10 +75,15 @@ processResources {
     inputs.property 'version',         project.version
     inputs.property 'minecraft_range', project.minecraft_range
     if (sc_loader == "fabric") {
+        // Don't ship NeoForge metadata in the Fabric jar, or loaders/Modrinth
+        // mis-detect it as a NeoForge mod too.
+        exclude 'META-INF/neoforge.mods.toml'
         filesMatching('fabric.mod.json') {
             expand version: project.version, minecraft_range: project.minecraft_range
         }
     } else {
+        // Likewise, keep Fabric metadata out of the NeoForge jar.
+        exclude 'fabric.mod.json'
         filesMatching('META-INF/neoforge.mods.toml') {
             expand version: project.version, minecraft_range: project.minecraft_range
         }
