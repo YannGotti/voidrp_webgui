@@ -112,13 +112,14 @@ public final class WebGUIClient
             WebGUIMod.LOGGER.info("WebGUI bridge ready (console log, page<->game, client data).");
         });
 
-        modBus.addListener(WebGUIClient::onRegisterPayloads);
+        // Payload registration moved to common init (WebGUIMod) so the dedicated
+        // server also registers the S2C channels — see issue #4.
         WebGUIKeys.register(modBus);
         WebHudOverlay.register();
         NeoForge.EVENT_BUS.addListener(WebGUIClient::onClientTick);
     }
 
-    private static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
+    static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
         final var reg = event.registrar("1");
         reg.playToClient(WebviewPayloads.OpenWebS2CPayload.TYPE, WebviewPayloads.OpenWebS2CPayload.STREAM_CODEC,
                 (payload, ctx) -> {
