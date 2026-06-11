@@ -68,6 +68,49 @@ public final class WebviewPageToClientBridge {
                 String msg   = obj.has("message") ? obj.get("message").getAsString() : request;
                 log(level, msg);
             }
+            case "open_gui" -> {
+                String url = obj.has("url") ? obj.get("url").getAsString() : null;
+                if (url != null && !url.isBlank()) {
+                    final String finalUrl = url;
+                    //? if fabric {
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    mc.execute(() -> mc.setScreen(new WebViewScreen(finalUrl)));
+                    //? } else {
+                    /*Minecraft mc = Minecraft.getInstance();
+                    mc.execute(() -> mc.setScreen(new WebViewScreen(finalUrl)));*/
+                    //? }
+                }
+            }
+            case "open_hud" -> {
+                String url = obj.has("url") ? obj.get("url").getAsString() : null;
+                if (url != null && !url.isBlank()) {
+                    final String finalUrl = url;
+                    //? if fabric {
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    mc.execute(() -> WebHudOverlay.applyServerOpen(mc, finalUrl));
+                    //? } else {
+                    /*Minecraft mc = Minecraft.getInstance();
+                    mc.execute(() -> WebHudOverlay.applyServerOpen(mc, finalUrl));*/
+                    //? }
+                }
+            }
+            case "run_command" -> {
+                String cmd = obj.has("command") ? obj.get("command").getAsString() : null;
+                if (cmd != null && !cmd.isBlank()) {
+                    String cmdClean = cmd.startsWith("/") ? cmd.substring(1) : cmd;
+                    //? if fabric {
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    mc.execute(() -> {
+                        if (mc.getNetworkHandler() != null) mc.getNetworkHandler().sendCommand(cmdClean);
+                    });
+                    //? } else {
+                    /*Minecraft mc = Minecraft.getInstance();
+                    mc.execute(() -> {
+                        if (mc.getConnection() != null) mc.getConnection().sendCommand(cmdClean);
+                    });*/
+                    //? }
+                }
+            }
             case "close" -> {
                 //? if fabric {
                 MinecraftClient mc = MinecraftClient.getInstance();
